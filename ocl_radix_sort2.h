@@ -14,10 +14,10 @@ struct RadixSort2_t {
 
 	ocl_program program;
 
-	static const int NUM_EL_PER_WI = 2;
+	static const int NUM_EL_PER_WI = 8;
 	static const int NUM_BITS = 4;
 	static const int NUM_BINS = 1<<NUM_BITS;
-	static const int RADIX_BLK_SIZ = 256;
+	static const int RADIX_BLK_SIZ = 64;
 	static const int LOC2GLOB_BLK_SIZ = 256;
 
 	// calculated

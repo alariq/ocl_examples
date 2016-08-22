@@ -5,10 +5,11 @@
 #include "ocl_test.h"
 #include <assert.h>
 #include <string>
+#include <string.h>
 
 #include "ocl_radix_sort2.h"
 
-#define DEBUG_OUTPUT 0
+#define DEBUG_OUTPUT 1
 
 bool rs_create_ocl_buffers(RadixSort2_t* r, int* pel, int* pval, size_t num_el)
 {
@@ -68,9 +69,11 @@ template<typename T> void swap(T* a, T* b)
 bool rs_do2()
 {
 	RadixSort2_t r;
-	size_t num_el = 220480;
+	size_t num_el = //64*8*200 + 45;
+                    220480;
 	int* pel = new int[num_el];
 	int* pval = new int[num_el];
+
 	for(size_t i=0;i<num_el;++i)
 	{
 		//pel[i] = (i+230567)/(2*num_el - i);//rand()%0xFFFFFFFF;
@@ -92,7 +95,7 @@ bool rs_do2()
 	int num_iter = sizeof(int)*8 / mask_width;
 
 	float total_exec_time = 0;
-
+#if 0
 	float cpu_m1[16] = {
 		0.99114645f,  0.09327769f,  0.90075564f,  0.8913309f,
 		0.59739089f,  0.13906649f,  0.94246316f,  0.65673178f,
@@ -122,7 +125,6 @@ bool rs_do2()
 	// test
 	//status = clEnqueueWriteBuffer(ocl_get_queue(), o, TRUE, 0, 16*sizeof(float), cpu_m2, 0, 0, 0);  CHECK_OPENCL_ERROR(status, "clCreateBuffer failed. ");
 
-
 	{
 	ScopedMap sm(o);
 	float* p = (float*)sm.map(CL_MAP_READ, sizeof(float)*16);
@@ -135,7 +137,7 @@ bool rs_do2()
 		printf("\n");
 	}
 	}
-
+#endif
 
 	for(int i=0;i<num_iter;++i, shift+=mask_width)
 	{
@@ -158,6 +160,24 @@ bool rs_do2()
 
 	total_exec_time += exec_time;
 #if DEBUG_OUTPUT
+    const int our_bins_size = r.num_blocks * r.NUM_BINS;
+    int* our_bins = new int[our_bins_size];
+
+    memset(our_bins, 0, sizeof(int)*our_bins_size);
+    for(int b=0; b<r.num_blocks;++b)
+    {
+        for(int li=0; li<r.RADIX_BLK_SIZ; ++li) {
+            int offset = r.NUM_EL_PER_WI*(b*r.RADIX_BLK_SIZ + li);
+            for(int i=0; i<r.NUM_EL_PER_WI;++i) {
+				if(offset + i < r.num_el) {
+                	int bin = (pel[offset + i] & mask) >> shift;
+					assert(bin < 16 && bin>=0);
+                	our_bins[r.NUM_BINS*b + bin]++;
+				}
+            }
+        }
+    }
+
 	{
 	ScopedMap sm(r.local_scan);
 	int* p = (int*)sm.map(CL_MAP_READ, sizeof(int)*r.NUM_BINS*r.RADIX_BLK_SIZ);
@@ -174,6 +194,19 @@ bool rs_do2()
 	{
 	ScopedMap sm(r.scan);
 	int* p = (int*)sm.map(CL_MAP_READ, sizeof(int)*r.scan_num_el);
+    // check with CPU version
+	if(i == 0) { // check only works on first iteration because on second, our input array is already sorted according to higher 4 bits.
+    	for(int i=0;i<our_bins_size;++i)
+    	{
+       		if(p[i] != our_bins[i])
+			{
+				printf("error!\n");
+			}
+    	}
+	}
+    delete our_bins;
+    our_bins = NULL;
+
 	for(int j=0;j<r.num_blocks;++j)
 	{
 		for(int i=0;i<r.NUM_BINS;++i)
@@ -188,7 +221,7 @@ bool rs_do2()
 	k = r.program.kernels_["radix_glob_scan"];
 	status = clSetKernelArg(k, 0, sizeof(cl_mem), &r.scan);			CHECK_OPENCL_ERROR(status, "clSetKernelArg failed.");
 	status = clSetKernelArg(k, 1, sizeof(cl_mem), &r.bin_offsets);	CHECK_OPENCL_ERROR(status, "clSetKernelArg failed.");
-	status = clSetKernelArg(k, 2, sizeof(cl_mem), &r.num_blocks);	CHECK_OPENCL_ERROR(status, "clSetKernelArg failed.");
+	status = clSetKernelArg(k, 2, sizeof(cl_int), &r.num_blocks);	CHECK_OPENCL_ERROR(status, "clSetKernelArg failed.");
 	// each WG processes up to 2*BLK_SIZ elements from one bin 
 	int num_loc2glob_blocks = r.NUM_BINS * ((r.num_blocks + 2*r.LOC2GLOB_BLK_SIZ - 1) / (2*r.LOC2GLOB_BLK_SIZ));
 	if(!ocl_execute_kernel_1d_sync(k, r.LOC2GLOB_BLK_SIZ, num_loc2glob_blocks, &exec_time))
