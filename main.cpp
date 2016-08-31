@@ -20,6 +20,7 @@
 #include "ocl_stream_compact.h"
 
 #include "examples/example1_reduce.h"
+#include "examples/example_article.h"
 
 YUV_params g_yuv_params;
 char* Y_frame = 0;
@@ -149,6 +150,12 @@ int main( int argc, char* argv[] )
     if(!ocl_init(&oclinitparams, profile ? CL_QUEUE_PROFILING_ENABLE : 0))
     {
         printf("Failed to init OpenCL\n");
+        exit(1);
+    }
+
+    if(!article_example_do())
+    {
+        printf("Article examples failed\n");
         exit(1);
     }
      

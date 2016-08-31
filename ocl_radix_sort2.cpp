@@ -9,7 +9,8 @@
 
 #include "ocl_radix_sort2.h"
 
-#define DEBUG_OUTPUT 1
+#define DEBUG_OUTPUT 0
+#define DEBUG_CHECK 1
 
 bool rs_create_ocl_buffers(RadixSort2_t* r, int* pel, int* pval, size_t num_el)
 {
@@ -242,7 +243,9 @@ bool rs_do2()
 		printf("\n");
 	}
 	}
+#endif
 
+#if DEBUG_CHECK
 	{
 	ScopedMap sm(r.bin_offsets);
 	int* p = (int*)sm.map(CL_MAP_READ, sizeof(int)*r.NUM_BINS);

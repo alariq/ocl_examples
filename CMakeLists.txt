@@ -7,6 +7,7 @@ set(OCL_EXAMPLES_SOURCES ${OCL_EXAMPLES_SOURCES}
     3rdparty/utils/stream.cpp
     3rdparty/utils/stream_utils.cpp
     examples/example1_reduce.cpp
+    examples/example_article.cpp
     main.cpp
     ocl_hist.cpp
     ocl_radix_sort.cpp
